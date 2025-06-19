@@ -129,48 +129,48 @@ const API_SITES = {
          adult: true
      },
      jkun: {
-         api: 'https://jkunzyapi.com',
+         api: 'https://jkunzyapi.com/api.php/provide/vod',
          name: 'jkun资源',
          adult: true
      },
      th: {
-         api: 'https://thzy1.me',
+         api: 'https://thzy1.me/api.php/provide/vod',
          name: '桃花资源',
          adult: true
      },
      souav: {
-         api: 'https://api.souavzy.vip',
+         api: 'https://api.souavzy.vip/api.php/provide/vod',
          name: 'souav资源',
          adult: true
      },
      aosika: {
-         api: 'https://askjxbf.com',
+         api: 'https://askjxbf.com/api.php/provide/vod',
          name: '奥斯卡资源',
          adult: true
      },
      lsb: {
-         api: 'https://apilsbzy1.com',
+         api: 'https://apilsbzy1.com/api.php/provide/vod',
          name: 'lsb资源',
          adult: true
      },
      huangcang: {
-         api: 'https://hsckzy.vip',
+         api: 'https://hsckzy.vip/api.php/provide/vod',
          name: '黄色仓库',
          adult: true,
-         detail: 'https://hsckzy.vip'
+         detail: 'https://hsckzy.vip/api.php/provide/vod'
      },
      yutu: {
-         api: 'https://yutuzy10.com',
+         api: 'https://yutuzy10.com/api.php/provide/vod',
          name: '玉兔资源',
          adult: true
      },
      ckzy: {
-         api: 'https://ckzy.me',
+         api: 'https://ckzy.me/api.php/provide/vod',
          name: 'ckzy',
          adult: true
      },
      bx: {
-         api: 'https://nxbfvod.com',
+         api: 'https://nxbfvod.com/api.php/provide/vod',
          name: 'nx',
          adult: true
      },
