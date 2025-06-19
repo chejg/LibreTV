@@ -123,9 +123,9 @@ const API_SITES = {
     // 这些影片和背后的产业已经使数百万男女“下海”，出卖自己的身体，甚至以此为生计。
     // 而作为观众无辜吗？毫无疑问，他们促成了黄色产业链的再生产。
     // 我们提供此警告，是希望您能认清这些内容的本质——它们是压迫和奴役的工具，而非娱乐。
-     ckzy: {
-         api: 'https://www.ckzy1.com',
-         name: 'CK资源',
+     sl: {
+         api: 'https://slapibf.com',
+         name: '森林1资源',
          adult: true
      },
      jkun: {
@@ -133,9 +133,9 @@ const API_SITES = {
          name: 'jkun资源',
          adult: true
      },
-     bwzy: {
-         api: 'https://api.bwzym3u8.com',
-         name: '百万资源',
+     th: {
+         api: 'https://thzy1.me',
+         name: '桃花资源',
          adult: true
      },
      souav: {
@@ -143,9 +143,9 @@ const API_SITES = {
          name: 'souav资源',
          adult: true
      },
-     r155: {
-         api: 'https://155api.com',
-         name: '155资源',
+     aosika: {
+         api: 'https://askjxbf.com',
+         name: '奥斯卡资源',
          adult: true
      },
      lsb: {
@@ -164,6 +164,17 @@ const API_SITES = {
          name: '玉兔资源',
          adult: true
      },
+     ckzy: {
+         api: 'https://ckzy.me',
+         name: 'ckzy',
+         adult: true
+     },
+     bx: {
+         api: 'https://nxbfvod.com',
+         name: 'nx',
+         adult: true
+     },
+
 
     // 下面是资源失效率高的API源，不建议使用
     // subo: {
