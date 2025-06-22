@@ -153,6 +153,11 @@ const API_SITES = {
          name: 'lsb资源',
          adult: true
      },
+    bwzy: {
+         api: 'https://api.bwzym3u8.com/api.php/provide/vod',
+         name: 'bwzy',
+         adult: true,
+     },
      huangcang: {
          api: 'https://hsckzy888.com/api.php/provide/vod',
          name: '黄色仓库',
@@ -166,6 +171,11 @@ const API_SITES = {
      },
      ckzy: {
          api: 'https://ckzy.me/api.php/provide/vod',
+         name: 'ckzy',
+         adult: true
+     },
+     clzy: {
+         api: 'https://www.caoliuzyw.com/api.php/provide/vod',
          name: 'ckzy',
          adult: true
      },
