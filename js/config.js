@@ -112,7 +112,7 @@ const API_SITES = {
     },
     gaapi: {
          api: 'https://gayapi.com/api.php/provide/vod',
-         name: 'nx',
+         name: 'gapi',
          adult: true
      },
     // 下面是一些成人内容的API源，默认隐藏，使用本项目浏览黄色内容违背项目初衷
@@ -176,12 +176,12 @@ const API_SITES = {
      },
      clzy: {
          api: 'https://www.caoliuzyw.com/api.php/provide/vod',
-         name: 'ckzy',
+         name: 'caoliu',
          adult: true
      },
      bx: {
          api: 'https://nxbfvod.com/api.php/provide/vod',
-         name: 'nx',
+         name: 'nxbf',
          adult: true
      },
 
