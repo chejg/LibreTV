@@ -175,8 +175,8 @@ const API_SITES = {
          adult: true
      },
      clzy: {
-         api: 'https://www.caoliuzyw.com/api.php/provide/vod',
-         name: 'caoliu',
+         api: 'https://api.ddapi.cc/api.php/provide/vod',
+         name: 'ddapi',
          adult: true
      },
      bx: {
