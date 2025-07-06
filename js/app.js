@@ -13,6 +13,20 @@ let episodesReversed = false;
 
 // 页面初始化
 document.addEventListener('DOMContentLoaded', function () {
+    // --- 新增：处理 URL 中的视频详情参数 ---
+    const urlParams = new URLSearchParams(window.location.search);
+    const detailId = urlParams.get('id');
+    const detailName = urlParams.get('name');
+    const detailSource = urlParams.get('source');
+
+    if (detailId && detailName && detailSource) {
+        // 如果URL中带有视频详情参数，则直接显示详情
+        showDetails(detailId, detailName, detailSource);
+        // 清除URL参数，避免刷新后再次弹出（可选，取决于您希望的行为）
+        // history.replaceState({}, document.title, window.location.pathname);
+    }
+    // --- 新增结束 ---
+
     // 初始化API复选框
     initAPICheckboxes();
 
@@ -485,8 +499,8 @@ function toggleSettings(e) {
     if (!settingsPanel) return;
 
     // 检查是否有管理员密码
-    const hasAdminPassword = window.__ENV__?.ADMINPASSWORD && 
-                           window.__ENV__.ADMINPASSWORD.length === 64 && 
+    const hasAdminPassword = window.__ENV__?.ADMINPASSWORD &&
+                           window.__ENV__.ADMINPASSWORD.length === 64 &&
                            !/^0+$/.test(window.__ENV__.ADMINPASSWORD);
 
     if (settingsPanel.classList.contains('show')) {
@@ -644,7 +658,7 @@ async function search() {
 
         // 从所有选中的API源搜索
         let allResults = [];
-        const searchPromises = selectedAPIs.map(apiId => 
+        const searchPromises = selectedAPIs.map(apiId =>
             searchByAPIAndKeyWord(apiId, query)
         );
 
@@ -663,7 +677,7 @@ async function search() {
             // 首先按照视频名称排序
             const nameCompare = (a.vod_name || '').localeCompare(b.vod_name || '');
             if (nameCompare !== 0) return nameCompare;
-            
+
             // 如果名称相同，则按照来源排序
             return (a.source_name || '').localeCompare(b.source_name || '');
         });
@@ -692,7 +706,7 @@ async function search() {
             resultsDiv.innerHTML = `
                 <div class="col-span-full text-center py-16">
                     <svg class="mx-auto h-12 w-12 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                               d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                     <h3 class="mt-2 text-lg font-medium text-gray-400">没有找到匹配的结果</h3>
@@ -747,34 +761,31 @@ async function search() {
 
             const hasCover = item.vod_pic && item.vod_pic.startsWith('http');
 
-            // --- 修改开始 ---
-            // 构建详情页的URL，用于在新标签页中打开
-            // 注意：这里假设 showDetails 的内部逻辑最终会展示在一个URL路径上，
-            // 或者我们可以创建一个专门的详情页URL，例如 /details?id=...&source=...
-            // 为了简化，我们假设可以通过一个特定的URL模式来表示详情页
-            // 如果您的项目详情页URL不是这样的，请根据实际情况调整
-            const detailPageUrl = `/details?id=${encodeURIComponent(safeId)}&name=${encodeURIComponent(safeName)}&source=${encodeURIComponent(sourceCode)}`;
+            // --- 修改开始：调整 detailPageUrl 使其指向主页并带上详情参数 ---
+            // 注意：window.location.pathname 获取当前页面的路径，例如 / 或 /index.html
+            const currentPath = window.location.pathname.replace('index.html', ''); // 确保是根路径或 /
+            const detailPageUrl = `${currentPath}?id=${encodeURIComponent(safeId)}&name=${encodeURIComponent(safeName)}&source=${encodeURIComponent(sourceCode)}`;
             // --- 修改结束 ---
 
             return `
                 <div class="card-hover bg-[#111] rounded-lg overflow-hidden transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md">
-                    <a href="${detailPageUrl}" target="_blank" rel="noopener noreferrer" 
+                    <a href="${detailPageUrl}" target="_blank" rel="noopener noreferrer"
                        onclick="event.preventDefault(); showDetails('${safeId}','${safeName}','${sourceCode}');"
                        class="block w-full h-full text-white no-underline">
                         <div class="flex h-full">
                             ${hasCover ? `
                             <div class="relative flex-shrink-0 search-card-img-container">
-                                <img src="${item.vod_pic}" alt="${safeName}" 
-                                     class="h-full w-full object-cover transition-transform hover:scale-110" 
-                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450?text=无封面'; this.classList.add('object-contain');" 
+                                <img src="${item.vod_pic}" alt="${safeName}"
+                                     class="h-full w-full object-cover transition-transform hover:scale-110"
+                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450?text=无封面'; this.classList.add('object-contain');"
                                      loading="lazy">
                                 <div class="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent"></div>
                             </div>` : ''}
-                            
+
                             <div class="p-2 flex flex-col flex-grow">
                                 <div class="flex-grow">
                                     <h3 class="font-semibold mb-2 break-words line-clamp-2 ${hasCover ? '' : 'text-center'}" title="${safeName}">${safeName}</h3>
-                                    
+
                                     <div class="flex flex-wrap ${hasCover ? '' : 'justify-center'} gap-1 mb-2">
                                         ${(item.type_name || '').toString().replace(/</g, '&lt;') ?
                         `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-blue-500 text-blue-300">
@@ -789,7 +800,7 @@ async function search() {
                                         ${(item.vod_remarks || '暂无介绍').toString().replace(/</g, '&lt;')}
                                     </p>
                                 </div>
-                                
+
                                 <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
                                     ${sourceInfo ? `<div>${sourceInfo}</div>` : '<div></div>'}
                                 </div>
@@ -954,7 +965,7 @@ async function showDetails(id, vod_name, sourceCode) {
                 ${detailInfoHtml}
                 <div class="flex flex-wrap items-center justify-between mb-4 gap-2">
                     <div class="flex items-center gap-2">
-                        <button onclick="toggleEpisodeOrder('${sourceCode}', '${id}')" 
+                        <button onclick="toggleEpisodeOrder('${sourceCode}', '${id}')"
                                 class="px-3 py-1.5 bg-[#333] hover:bg-[#444] border border-[#444] rounded text-sm transition-colors flex items-center gap-1">
                             <svg class="w-4 h-4 transform ${episodesReversed ? 'rotate-180' : ''}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3"></path>
@@ -1101,7 +1112,7 @@ function renderEpisodes(vodName, sourceCode, vodId) {
         // 根据倒序状态计算真实的剧集索引
         const realIndex = episodesReversed ? currentEpisodes.length - 1 - index : index;
         return `
-            <button id="episode-${realIndex}" onclick="playVideo('${episode}','${vodName.replace(/"/g, '&quot;')}', '${sourceCode}', ${realIndex}, '${vodId}')" 
+            <button id="episode-${realIndex}" onclick="playVideo('${episode}','${vodName.replace(/"/g, '&quot;')}', '${sourceCode}', ${realIndex}, '${vodId}')"
                     class="px-4 py-2 bg-[#222] hover:bg-[#333] border border-[#333] rounded-lg transition-colors text-center episode-btn">
                 ${realIndex + 1}
             </button>
@@ -1155,14 +1166,14 @@ async function importConfigFromUrl() {
     modal.innerHTML = `
         <div class="bg-[#191919] rounded-lg p-6 max-w-md w-full max-h-[90vh] overflow-y-auto relative">
             <button id="closeUrlModal" class="absolute top-4 right-4 text-gray-400 hover:text-white text-xl">&times;</button>
-            
+
             <h3 class="text-xl font-bold mb-4">从URL导入配置</h3>
-            
+
             <div class="mb-4">
-                <input type="text" id="configUrl" placeholder="输入配置文件URL" 
+                <input type="text" id="configUrl" placeholder="输入配置文件URL"
                        class="w-full px-3 py-2 bg-[#222] border border-[#333] rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-blue-500">
             </div>
-            
+
             <div class="flex justify-end space-x-2">
                 <button id="confirmUrlImport" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">导入</button>
                 <button id="cancelUrlImport" class="bg-[#444] hover:bg-[#555] text-white px-4 py-2 rounded">取消</button>
@@ -1355,14 +1366,3 @@ function saveStringAsFile(content, fileName) {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 }
-
-// 注意：这里需要确保您的应用有一个路由来处理 `/details` 路径
-// 例如，如果您使用Express.js在后端，您可能需要一个这样的路由：
-// app.get('/details', (req, res) => {
-//   // 根据 req.query.id, req.query.name, req.query.source 加载并渲染详情页
-//   // 或者重定向到播放页，这取决于您的应用设计
-// });
-// 如果您的应用是纯前端单页应用，您可能需要使用路由库（如 `vue-router` 或 `react-router`）
-// 来处理 `/details` 路径并加载相应的组件。
-
-// 移除Node.js的require语句，因为这是在浏览器环境中运行的
