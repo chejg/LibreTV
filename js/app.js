@@ -11,9 +11,6 @@ let currentVideoTitle = '';
 // 全局变量用于倒序状态
 let episodesReversed = false;
 
-// 定义一个变量来存储自定义右键菜单元素
-let customContextMenu = null;
-
 // 页面初始化
 document.addEventListener('DOMContentLoaded', function () {
     // 初始化API复选框
@@ -541,12 +538,6 @@ function setupEventListeners() {
             !historyButton.contains(e.target)) {
             historyPanel.classList.remove('show');
         }
-
-        // 点击其他地方关闭自定义右键菜单
-        if (customContextMenu && !customContextMenu.contains(e.target)) {
-            customContextMenu.remove();
-            customContextMenu = null;
-        }
     });
 
     // 黄色内容过滤开关事件绑定
@@ -754,73 +745,62 @@ async function search() {
             const apiUrlAttr = item.api_url ?
                 `data-api-url="${item.api_url.replace(/"/g, '&quot;')}"` : '';
 
-            // 为右键菜单准备播放链接 (假设第一个剧集就是主要的播放链接)
-            let playbackUrl = '';
-            if (item.vod_play_url) {
-                // vod_play_url 可能包含多个播放地址，这里假设我们只关心第一个
-                // 实际项目中可能需要更复杂的逻辑来选择合适的播放链接
-                const firstEpisodeLink = item.vod_play_url.split('$$$')[0]; // 分割播放组，取第一个
-                const firstLink = firstEpisodeLink.split('#')[0]; // 分割集数，取第一个链接
-                if (firstLink) {
-                    playbackUrl = `watch.html?id=${safeId || ''}&source=${sourceCode || ''}&url=${encodeURIComponent(firstLink)}&index=0&title=${encodeURIComponent(safeName)}`;
-                }
-            }
-
-
-            // 修改为水平卡片布局，图片在左侧，文本在右侧，并优化样式
             const hasCover = item.vod_pic && item.vod_pic.startsWith('http');
 
+            // --- 修改开始 ---
+            // 构建详情页的URL，用于在新标签页中打开
+            // 注意：这里假设 showDetails 的内部逻辑最终会展示在一个URL路径上，
+            // 或者我们可以创建一个专门的详情页URL，例如 /details?id=...&source=...
+            // 为了简化，我们假设可以通过一个特定的URL模式来表示详情页
+            // 如果您的项目详情页URL不是这样的，请根据实际情况调整
+            const detailPageUrl = `/details?id=${encodeURIComponent(safeId)}&name=${encodeURIComponent(safeName)}&source=${encodeURIComponent(sourceCode)}`;
+            // --- 修改结束 ---
+
             return `
-                <div class="card-hover bg-[#111] rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md" 
-                     onclick="showDetails('${safeId}','${safeName}','${sourceCode}')" ${apiUrlAttr}
-                     data-playback-url="${playbackUrl.replace(/"/g, '&quot;')}"
-                >
-                    <div class="flex h-full">
-                        ${hasCover ? `
-                        <div class="relative flex-shrink-0 search-card-img-container">
-                            <img src="${item.vod_pic}" alt="${safeName}" 
-                                 class="h-full w-full object-cover transition-transform hover:scale-110" 
-                                 onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450?text=无封面'; this.classList.add('object-contain');" 
-                                 loading="lazy">
-                            <div class="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent"></div>
-                        </div>` : ''}
-                        
-                        <div class="p-2 flex flex-col flex-grow">
-                            <div class="flex-grow">
-                                <h3 class="font-semibold mb-2 break-words line-clamp-2 ${hasCover ? '' : 'text-center'}" title="${safeName}">${safeName}</h3>
-                                
-                                <div class="flex flex-wrap ${hasCover ? '' : 'justify-center'} gap-1 mb-2">
-                                    ${(item.type_name || '').toString().replace(/</g, '&lt;') ?
-                    `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-blue-500 text-blue-300">
-                                          ${(item.type_name || '').toString().replace(/</g, '&lt;')}
-                                      </span>` : ''}
-                                    ${(item.vod_year || '') ?
-                    `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-purple-500 text-purple-300">
-                                          ${item.vod_year}
-                                      </span>` : ''}
-                                </div>
-                                <p class="text-gray-400 line-clamp-2 overflow-hidden ${hasCover ? '' : 'text-center'} mb-2">
-                                    ${(item.vod_remarks || '暂无介绍').toString().replace(/</g, '&lt;')}
-                                </p>
-                            </div>
+                <div class="card-hover bg-[#111] rounded-lg overflow-hidden transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md">
+                    <a href="${detailPageUrl}" target="_blank" rel="noopener noreferrer" 
+                       onclick="event.preventDefault(); showDetails('${safeId}','${safeName}','${sourceCode}');"
+                       class="block w-full h-full text-white no-underline">
+                        <div class="flex h-full">
+                            ${hasCover ? `
+                            <div class="relative flex-shrink-0 search-card-img-container">
+                                <img src="${item.vod_pic}" alt="${safeName}" 
+                                     class="h-full w-full object-cover transition-transform hover:scale-110" 
+                                     onerror="this.onerror=null; this.src='https://via.placeholder.com/300x450?text=无封面'; this.classList.add('object-contain');" 
+                                     loading="lazy">
+                                <div class="absolute inset-0 bg-gradient-to-r from-black/30 to-transparent"></div>
+                            </div>` : ''}
                             
-                            <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
-                                ${sourceInfo ? `<div>${sourceInfo}</div>` : '<div></div>'}
+                            <div class="p-2 flex flex-col flex-grow">
+                                <div class="flex-grow">
+                                    <h3 class="font-semibold mb-2 break-words line-clamp-2 ${hasCover ? '' : 'text-center'}" title="${safeName}">${safeName}</h3>
+                                    
+                                    <div class="flex flex-wrap ${hasCover ? '' : 'justify-center'} gap-1 mb-2">
+                                        ${(item.type_name || '').toString().replace(/</g, '&lt;') ?
+                        `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-blue-500 text-blue-300">
+                                              ${(item.type_name || '').toString().replace(/</g, '&lt;')}
+                                          </span>` : ''}
+                                        ${(item.vod_year || '') ?
+                        `<span class="text-xs py-0.5 px-1.5 rounded bg-opacity-20 bg-purple-500 text-purple-300">
+                                              ${item.vod_year}
+                                          </span>` : ''}
+                                    </div>
+                                    <p class="text-gray-400 line-clamp-2 overflow-hidden ${hasCover ? '' : 'text-center'} mb-2">
+                                        ${(item.vod_remarks || '暂无介绍').toString().replace(/</g, '&lt;')}
+                                    </p>
                                 </div>
+                                
+                                <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
+                                    ${sourceInfo ? `<div>${sourceInfo}</div>` : '<div></div>'}
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    </a>
                 </div>
             `;
         }).join('');
 
         resultsDiv.innerHTML = safeResults;
-
-        // 添加右键点击事件监听器到每个搜索结果卡片
-        const resultCards = resultsDiv.querySelectorAll('.card-hover');
-        resultCards.forEach(card => {
-            card.addEventListener('contextmenu', handleCardRightClick);
-        });
-
     } catch (error) {
         console.error('搜索错误:', error);
         if (error.name === 'AbortError') {
@@ -831,58 +811,6 @@ async function search() {
     } finally {
         hideLoading();
     }
-}
-
-/**
- * 处理搜索结果卡片的右键点击事件
- * @param {MouseEvent} event 
- */
-function handleCardRightClick(event) {
-    event.preventDefault(); // 阻止浏览器默认右键菜单
-
-    // 如果已经有菜单，先移除
-    if (customContextMenu) {
-        customContextMenu.remove();
-        customContextMenu = null;
-    }
-
-    const targetCard = event.currentTarget;
-    const playbackUrl = targetCard.dataset.playbackUrl;
-
-    if (!playbackUrl) {
-        console.warn('未找到播放链接');
-        return;
-    }
-
-    // 创建自定义菜单
-    customContextMenu = document.createElement('div');
-    customContextMenu.className = 'custom-context-menu'; // 添加自定义类名，用于CSS样式
-    customContextMenu.style.position = 'fixed';
-    customContextMenu.style.left = `${event.clientX}px`;
-    customContextMenu.style.top = `${event.clientY}px`;
-    customContextMenu.style.backgroundColor = '#222';
-    customContextMenu.style.border = '1px solid #444';
-    customContextMenu.style.borderRadius = '4px';
-    customContextMenu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
-    customContextMenu.style.zIndex = '9999';
-    customContextMenu.style.minWidth = '120px'; // 增加最小宽度
-    customContextMenu.style.padding = '5px 0'; // 增加内边距
-
-    customContextMenu.innerHTML = `
-        <div class="menu-item" style="padding: 8px 12px; cursor: pointer; color: #eee; font-size: 14px;">
-            在新标签页中打开
-        </div>
-    `;
-
-    document.body.appendChild(customContextMenu);
-
-    // 为菜单项添加点击事件
-    const menuItem = customContextMenu.querySelector('.menu-item');
-    menuItem.addEventListener('click', () => {
-        window.open(playbackUrl, '_blank');
-        customContextMenu.remove(); // 点击后移除菜单
-        customContextMenu = null;
-    });
 }
 
 // 切换清空按钮的显示状态
@@ -1427,5 +1355,14 @@ function saveStringAsFile(content, fileName) {
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
 }
+
+// 注意：这里需要确保您的应用有一个路由来处理 `/details` 路径
+// 例如，如果您使用Express.js在后端，您可能需要一个这样的路由：
+// app.get('/details', (req, res) => {
+//   // 根据 req.query.id, req.query.name, req.query.source 加载并渲染详情页
+//   // 或者重定向到播放页，这取决于您的应用设计
+// });
+// 如果您的应用是纯前端单页应用，您可能需要使用路由库（如 `vue-router` 或 `react-router`）
+// 来处理 `/details` 路径并加载相应的组件。
 
 // 移除Node.js的require语句，因为这是在浏览器环境中运行的
