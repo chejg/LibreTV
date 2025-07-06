@@ -11,6 +11,9 @@ let currentVideoTitle = '';
 // 全局变量用于倒序状态
 let episodesReversed = false;
 
+// 定义一个变量来存储自定义右键菜单元素
+let customContextMenu = null;
+
 // 页面初始化
 document.addEventListener('DOMContentLoaded', function () {
     // 初始化API复选框
@@ -538,6 +541,12 @@ function setupEventListeners() {
             !historyButton.contains(e.target)) {
             historyPanel.classList.remove('show');
         }
+
+        // 点击其他地方关闭自定义右键菜单
+        if (customContextMenu && !customContextMenu.contains(e.target)) {
+            customContextMenu.remove();
+            customContextMenu = null;
+        }
     });
 
     // 黄色内容过滤开关事件绑定
@@ -745,12 +754,27 @@ async function search() {
             const apiUrlAttr = item.api_url ?
                 `data-api-url="${item.api_url.replace(/"/g, '&quot;')}"` : '';
 
+            // 为右键菜单准备播放链接 (假设第一个剧集就是主要的播放链接)
+            let playbackUrl = '';
+            if (item.vod_play_url) {
+                // vod_play_url 可能包含多个播放地址，这里假设我们只关心第一个
+                // 实际项目中可能需要更复杂的逻辑来选择合适的播放链接
+                const firstEpisodeLink = item.vod_play_url.split('$$$')[0]; // 分割播放组，取第一个
+                const firstLink = firstEpisodeLink.split('#')[0]; // 分割集数，取第一个链接
+                if (firstLink) {
+                    playbackUrl = `watch.html?id=${safeId || ''}&source=${sourceCode || ''}&url=${encodeURIComponent(firstLink)}&index=0&title=${encodeURIComponent(safeName)}`;
+                }
+            }
+
+
             // 修改为水平卡片布局，图片在左侧，文本在右侧，并优化样式
             const hasCover = item.vod_pic && item.vod_pic.startsWith('http');
 
             return `
                 <div class="card-hover bg-[#111] rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md" 
-                     onclick="showDetails('${safeId}','${safeName}','${sourceCode}')" ${apiUrlAttr}>
+                     onclick="showDetails('${safeId}','${safeName}','${sourceCode}')" ${apiUrlAttr}
+                     data-playback-url="${playbackUrl.replace(/"/g, '&quot;')}"
+                >
                     <div class="flex h-full">
                         ${hasCover ? `
                         <div class="relative flex-shrink-0 search-card-img-container">
@@ -782,17 +806,7 @@ async function search() {
                             
                             <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
                                 ${sourceInfo ? `<div>${sourceInfo}</div>` : '<div></div>'}
-                                <!-- 接口名称过长会被挤变形
-                                <div>
-                                    <span class="text-gray-500 flex items-center hover:text-blue-400 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                        </svg>
-                                        播放
-                                    </span>
                                 </div>
-                                -->
-                            </div>
                         </div>
                     </div>
                 </div>
@@ -800,6 +814,13 @@ async function search() {
         }).join('');
 
         resultsDiv.innerHTML = safeResults;
+
+        // 添加右键点击事件监听器到每个搜索结果卡片
+        const resultCards = resultsDiv.querySelectorAll('.card-hover');
+        resultCards.forEach(card => {
+            card.addEventListener('contextmenu', handleCardRightClick);
+        });
+
     } catch (error) {
         console.error('搜索错误:', error);
         if (error.name === 'AbortError') {
@@ -810,6 +831,58 @@ async function search() {
     } finally {
         hideLoading();
     }
+}
+
+/**
+ * 处理搜索结果卡片的右键点击事件
+ * @param {MouseEvent} event 
+ */
+function handleCardRightClick(event) {
+    event.preventDefault(); // 阻止浏览器默认右键菜单
+
+    // 如果已经有菜单，先移除
+    if (customContextMenu) {
+        customContextMenu.remove();
+        customContextMenu = null;
+    }
+
+    const targetCard = event.currentTarget;
+    const playbackUrl = targetCard.dataset.playbackUrl;
+
+    if (!playbackUrl) {
+        console.warn('未找到播放链接');
+        return;
+    }
+
+    // 创建自定义菜单
+    customContextMenu = document.createElement('div');
+    customContextMenu.className = 'custom-context-menu'; // 添加自定义类名，用于CSS样式
+    customContextMenu.style.position = 'fixed';
+    customContextMenu.style.left = `${event.clientX}px`;
+    customContextMenu.style.top = `${event.clientY}px`;
+    customContextMenu.style.backgroundColor = '#222';
+    customContextMenu.style.border = '1px solid #444';
+    customContextMenu.style.borderRadius = '4px';
+    customContextMenu.style.boxShadow = '0 2px 8px rgba(0,0,0,0.5)';
+    customContextMenu.style.zIndex = '9999';
+    customContextMenu.style.minWidth = '120px'; // 增加最小宽度
+    customContextMenu.style.padding = '5px 0'; // 增加内边距
+
+    customContextMenu.innerHTML = `
+        <div class="menu-item" style="padding: 8px 12px; cursor: pointer; color: #eee; font-size: 14px;">
+            在新标签页中打开
+        </div>
+    `;
+
+    document.body.appendChild(customContextMenu);
+
+    // 为菜单项添加点击事件
+    const menuItem = customContextMenu.querySelector('.menu-item');
+    menuItem.addEventListener('click', () => {
+        window.open(playbackUrl, '_blank');
+        customContextMenu.remove(); // 点击后移除菜单
+        customContextMenu = null;
+    });
 }
 
 // 切换清空按钮的显示状态
