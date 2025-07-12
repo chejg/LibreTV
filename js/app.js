@@ -1,3 +1,13 @@
+// 防抖函数，用于延迟执行，避免频繁触发搜索
+function debounce(func, delay) {
+    let timeout;
+    return function(...args) {
+        const context = this;
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(context, args), delay);
+    };
+}
+
 // 全局变量
 let selectedAPIs = JSON.parse(localStorage.getItem('selectedAPIs') || '["tyyszy","dyttzy", "bfzy", "ruyi"]'); // 默认选中资源
 let customAPIs = JSON.parse(localStorage.getItem('customAPIs') || '[]'); // 存储自定义API列表
@@ -524,9 +534,26 @@ function toggleSettings(e) {
 
 // 设置事件监听器
 function setupEventListeners() {
-    // 回车搜索
-    document.getElementById('searchInput').addEventListener('keypress', function (e) {
+    const searchInput = document.getElementById('searchInput');
+
+    // 使用防抖处理输入事件，实现“输入时搜索”
+    const debouncedSearch = debounce(() => {
+        const query = searchInput.value.trim();
+        // 只有当输入框有内容时才执行搜索
+        if (query) {
+            search();
+        } else {
+            // 如果输入框为空，重置搜索区域并清除结果
+            resetSearchArea();
+        }
+    }, 350); // 350毫秒延迟
+
+    searchInput.addEventListener('input', debouncedSearch);
+
+    // 仍然可以保留回车键立即搜索的功能，用于提供明确的用户操作信号
+    searchInput.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') {
+            // 立即执行搜索，而不是等待防抖计时器
             search();
         }
     });
@@ -640,8 +667,10 @@ async function search() {
     }
     const query = document.getElementById('searchInput').value.trim();
 
+    // 如果查询为空，则不执行任何操作（或根据需要重置）
+    // 这个检查现在由 setupEventListeners 中的调用者处理
     if (!query) {
-        showToast('请输入搜索内容', 'info');
+        // showToast('请输入搜索内容', 'info'); // 可以移除，因为自动搜索时这个提示很烦人
         return;
     }
 
@@ -1301,6 +1330,8 @@ async function importConfig() {
         } catch (error) {
             const message = typeof error === 'string' ? error : '配置文件格式错误';
             showToast(`配置文件读取出错 (${message})`, 'error');
+        } finally {
+            hideLoading();
         }
     });
 }
