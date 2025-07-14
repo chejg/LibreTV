@@ -1,6 +1,18 @@
 const selectedAPIs = JSON.parse(localStorage.getItem('selectedAPIs') || '[]');
 const customAPIs = JSON.parse(localStorage.getItem('customAPIs') || '[]'); // 存储自定义API列表
 
+// Helper function to get the proxied URL
+function getProxiedUrl(originalUrl) {
+    if (!originalUrl || typeof originalUrl !== 'string') {
+        return '';
+    }
+    // Check if the URL is already proxied to avoid double proxying
+    if (originalUrl.startsWith('/proxy/')) {
+        return originalUrl;
+    }
+    return `/proxy/${encodeURIComponent(originalUrl)}`;
+}
+
 // 改进返回功能
 function goBack(event) {
     // 防止默认链接行为
@@ -223,7 +235,7 @@ function initializePageContent() {
 
     // 初始化播放器
     if (videoUrl) {
-        initPlayer(videoUrl);
+        initPlayer(getProxiedUrl(videoUrl));
     } else {
         showError('无效的视频链接');
     }
@@ -440,7 +452,7 @@ function initPlayer(videoUrl) {
     // Create new ArtPlayer instance
     art = new Artplayer({
         container: '#player',
-        url: videoUrl,
+        url: getProxiedUrl(videoUrl),
         type: 'm3u8',
         title: videoTitle,
         volume: 0.8,
@@ -517,11 +529,11 @@ function initPlayer(videoUrl) {
                 let sourceElement = video.querySelector('source');
                 if (sourceElement) {
                     // 更新现有source元素的URL
-                    sourceElement.src = videoUrl;
+                    sourceElement.src = getProxiedUrl(videoUrl);
                 } else {
                     // 创建新的source元素
                     sourceElement = document.createElement('source');
-                    sourceElement.src = videoUrl;
+                    sourceElement.src = getProxiedUrl(videoUrl);
                     video.appendChild(sourceElement);
                 }
                 video.disableRemotePlayback = false;
@@ -917,10 +929,11 @@ function playEpisode(index) {
 
     // 准备切换剧集的URL
     const url = currentEpisodes[index];
+    const proxiedUrl = getProxiedUrl(url);
 
     // 更新当前剧集索引
     currentEpisodeIndex = index;
-    currentVideoUrl = url;
+    currentVideoUrl = url; // Store original URL for history
     videoHasEnded = false; // 重置视频结束标志
 
     clearVideoProgress();
@@ -928,14 +941,14 @@ function playEpisode(index) {
     // 更新URL参数（不刷新页面）
     const currentUrl = new URL(window.location.href);
     currentUrl.searchParams.set('index', index);
-    currentUrl.searchParams.set('url', url);
+    currentUrl.searchParams.set('url', url); // Store original URL in URL params
     currentUrl.searchParams.delete('position');
     window.history.replaceState({}, '', currentUrl.toString());
 
     if (isWebkit) {
-        initPlayer(url);
+        initPlayer(proxiedUrl);
     } else {
-        art.switch = url;
+        art.switch = proxiedUrl;
     }
 
     // 更新UI
