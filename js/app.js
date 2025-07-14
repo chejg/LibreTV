@@ -730,27 +730,28 @@ async function search() {
             });
         }
 
-        // 添加XSS保护，使用textContent和属性转义
+        // 使用 <a> 标签创建结果卡片，以便右键可以在新标签页中打开
         const safeResults = allResults.map(item => {
             const safeId = item.vod_id ? item.vod_id.toString().replace(/[^\w-]/g, '') : '';
             const safeName = (item.vod_name || '').toString()
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
-            const sourceInfo = item.source_name ?
-                `<span class="bg-[#222] text-xs px-1.5 py-0.5 rounded-full">${item.source_name}</span>` : '';
             const sourceCode = item.source_code || '';
+            const sourceName = item.source_name || '';
+
+            // 构建 watch.html 的 URL
+            const watchUrl = `watch.html?id=${safeId}&source=${sourceCode}&name=${encodeURIComponent(safeName)}&source_name=${encodeURIComponent(sourceName)}`;
 
             // 添加API URL属性，用于详情获取
             const apiUrlAttr = item.api_url ?
                 `data-api-url="${item.api_url.replace(/"/g, '&quot;')}"` : '';
 
-            // 修改为水平卡片布局，图片在左侧，文本在右侧，并优化样式
             const hasCover = item.vod_pic && item.vod_pic.startsWith('http');
 
             return `
-                <div class="card-hover bg-[#111] rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md" 
-                     onclick="showDetails('${safeId}','${safeName}','${sourceCode}')" ${apiUrlAttr}>
+                <a href="${watchUrl}" class="search-result-item card-hover bg-[#111] rounded-lg overflow-hidden transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md" 
+                     data-id="${safeId}" data-name="${safeName}" data-raw-name="${(item.vod_name || '').replace(/"/g, '&quot;')}" data-source="${sourceCode}" ${apiUrlAttr}>
                     <div class="flex h-full">
                         ${hasCover ? `
                         <div class="relative flex-shrink-0 search-card-img-container">
@@ -781,25 +782,37 @@ async function search() {
                             </div>
                             
                             <div class="flex justify-between items-center mt-1 pt-1 border-t border-gray-800">
-                                ${sourceInfo ? `<div>${sourceInfo}</div>` : '<div></div>'}
-                                <!-- 接口名称过长会被挤变形
-                                <div>
-                                    <span class="text-gray-500 flex items-center hover:text-blue-400 transition-colors">
-                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
-                                        </svg>
-                                        播放
-                                    </span>
-                                </div>
-                                -->
+                                ${sourceName ? `<div><span class="bg-[#222] text-xs px-1.5 py-0.5 rounded-full">${sourceName}</span></div>` : '<div></div>'}
                             </div>
                         </div>
                     </div>
-                </div>
+                </a>
             `;
         }).join('');
 
         resultsDiv.innerHTML = safeResults;
+
+        // 移除旧的事件监听器，因为现在使用a标签的标准行为
+        // resultsDiv.addEventListener('click', handleResultClick);
+        // resultsDiv.addEventListener('mousedown', handleResultMouseDown);
+
+        // 左键点击现在由 a[href] 处理，但如果想保留模态框交互，需要一个不同的方法
+        // 为了满足“右键新标签页”的核心需求，我们暂时牺牲左键的模态框行为
+        // 添加一个新的事件监听器来处理左键点击，以显示详情模态框，同时允许右键和中键的默认行为
+        resultsDiv.addEventListener('click', function(e) {
+            const item = e.target.closest('.search-result-item');
+            if (!item) return;
+
+            // 仅处理左键点击 (e.button === 0)
+            // 允许中键点击 (e.button === 1) 和右键的上下文菜单 (通过不阻止默认行为)
+            if (e.button === 0) {
+                e.preventDefault(); // 阻止 a 标签的默认导航行为
+                const id = item.dataset.id;
+                const name = item.dataset.rawName;
+                const source = item.dataset.source;
+                showDetails(id, name, source);
+            }
+        });
     } catch (error) {
         console.error('搜索错误:', error);
         if (error.name === 'AbortError') {
@@ -811,6 +824,74 @@ async function search() {
         hideLoading();
     }
 }
+
+function handleResultClick(e) {
+    const item = e.target.closest('.search-result-item');
+    if (!item) return;
+
+    // Only handle left clicks
+    if (e.button !== 0) return;
+
+    const id = item.dataset.id;
+    const name = item.dataset.rawName;
+    const source = item.dataset.source;
+    
+    showDetails(id, name, source);
+}
+
+async function handleResultMouseDown(e) {
+    const item = e.target.closest('.search-result-item');
+    if (!item) return;
+
+    // 1 for middle-click, 2 for right-click
+    if (e.button !== 1 && e.button !== 2) return;
+
+    if (e.button === 2) {
+        e.preventDefault(); // Prevent context menu on right-click
+    }
+
+    const id = item.dataset.id;
+    const name = item.dataset.rawName;
+    const source = item.dataset.source;
+
+    showLoading('正在获取播放链接...');
+
+    try {
+        let apiParams = '';
+        if (source.startsWith('custom_')) {
+            const customIndex = source.replace('custom_', '');
+            const customApi = getCustomApiInfo(customIndex);
+            if (customApi) {
+                if (customApi.detail) {
+                    apiParams = '&customApi=' + encodeURIComponent(customApi.url) + '&customDetail=' + encodeURIComponent(customApi.detail) + '&source=custom';
+                } else {
+                    apiParams = '&customApi=' + encodeURIComponent(customApi.url) + '&source=custom';
+                }
+            }
+        } else {
+            apiParams = '&source=' + source;
+        }
+
+        const timestamp = new Date().getTime();
+        const cacheBuster = `&_t=${timestamp}`;
+        const response = await fetch(`/api/detail?id=${encodeURIComponent(id)}${apiParams}${cacheBuster}`);
+        const data = await response.json();
+
+        if (data.episodes && data.episodes.length > 0) {
+            const firstEpisodeUrl = data.episodes[0];
+            const watchUrl = `watch.html?id=${id}&source=${source}&url=${encodeURIComponent(firstEpisodeUrl)}&index=0&title=${encodeURIComponent(name)}`;
+            window.open(watchUrl, '_blank');
+        } else {
+            showToast('未找到可播放的资源', 'error');
+        }
+    } catch (error) {
+        console.error('获取详情错误:', error);
+        showToast('获取播放链接失败', 'error');
+    } finally {
+        hideLoading();
+    }
+}
+
 
 // 切换清空按钮的显示状态
 function toggleClearButton() {
@@ -855,6 +936,73 @@ function hookInput() {
     input.value = '';
 }
 document.addEventListener('DOMContentLoaded', hookInput);
+
+function handleResultClick(e) {
+    const item = e.target.closest('.search-result-item');
+    if (!item) return;
+
+    // Only handle left clicks
+    if (e.button !== 0) return;
+
+    const id = item.dataset.id;
+    const name = item.dataset.rawName;
+    const source = item.dataset.source;
+    
+    showDetails(id, name, source);
+}
+
+async function handleResultMouseDown(e) {
+    const item = e.target.closest('.search-result-item');
+    if (!item) return;
+
+    // 1 for middle-click, 2 for right-click
+    if (e.button !== 1 && e.button !== 2) return;
+
+    if (e.button === 2) {
+        e.preventDefault(); // Prevent context menu on right-click
+    }
+
+    const id = item.dataset.id;
+    const name = item.dataset.rawName;
+    const source = item.dataset.source;
+
+    showLoading('正在获取播放链接...');
+
+    try {
+        let apiParams = '';
+        if (source.startsWith('custom_')) {
+            const customIndex = source.replace('custom_', '');
+            const customApi = getCustomApiInfo(customIndex);
+            if (customApi) {
+                if (customApi.detail) {
+                    apiParams = '&customApi=' + encodeURIComponent(customApi.url) + '&customDetail=' + encodeURIComponent(customApi.detail) + '&source=custom';
+                } else {
+                    apiParams = '&customApi=' + encodeURIComponent(customApi.url) + '&source=custom';
+                }
+            }
+        } else {
+            apiParams = '&source=' + source;
+        }
+
+        const timestamp = new Date().getTime();
+        const cacheBuster = `&_t=${timestamp}`;
+        const response = await fetch(`/api/detail?id=${encodeURIComponent(id)}${apiParams}${cacheBuster}`);
+        const data = await response.json();
+
+        if (data.episodes && data.episodes.length > 0) {
+            const firstEpisodeUrl = data.episodes[0];
+            const watchUrl = `watch.html?id=${id}&source=${source}&url=${encodeURIComponent(firstEpisodeUrl)}&index=0&title=${encodeURIComponent(name)}`;
+            window.open(watchUrl, '_blank');
+        } else {
+            showToast('未找到可播放的资源', 'error');
+        }
+    } catch (error) {
+        console.error('获取详情错误:', error);
+        showToast('获取播放链接失败', 'error');
+    } finally {
+        hideLoading();
+    }
+}
 
 // 显示详情 - 修改为支持自定义API
 async function showDetails(id, vod_name, sourceCode) {
@@ -910,8 +1058,9 @@ async function showDetails(id, vod_name, sourceCode) {
         const sourceName = data.videoInfo && data.videoInfo.source_name ?
             ` <span class="text-sm font-normal text-gray-400">(${data.videoInfo.source_name})</span>` : '';
 
+        const safe_vod_name = (vod_name || '未知视频').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         // 不对标题进行截断处理，允许完整显示
-        modalTitle.innerHTML = `<span class="break-words">${vod_name || '未知视频'}</span>${sourceName}`;
+        modalTitle.innerHTML = `<span class="break-words">${safe_vod_name}</span>${sourceName}`;
         currentVideoTitle = vod_name || '未知视频';
 
         if (data.episodes && data.episodes.length > 0) {
