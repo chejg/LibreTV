@@ -77,4 +77,23 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }, 300);
     }
+    
+    // 检查详情页面参数 (格式: ?detail=vodId&source=sourceCode&title=vodName)
+    const detailId = urlParams.get('detail');
+    const detailSource = urlParams.get('source');
+    const detailTitle = urlParams.get('title');
+    
+    if (detailId && detailSource) {
+        // 延迟显示详情弹窗，确保页面完全加载
+        setTimeout(() => {
+            showDetails(detailId, detailTitle || '详情', detailSource);
+            // 清理URL参数，避免刷新时重复显示
+            try {
+                const cleanUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+            } catch (e) {
+                console.error('清理URL参数失败:', e);
+            }
+        }, 500);
+    }
 });
