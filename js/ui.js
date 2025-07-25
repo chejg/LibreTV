@@ -963,3 +963,178 @@ function showImportBox(fun) {
         fun(fileInput.files[0]);
     });
 }
+
+// 右键菜单相关函数
+let contextMenuData = null;
+
+// 显示右键菜单
+function showContextMenu(event, vodId, vodName, sourceCode) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // 保存右键菜单数据
+    contextMenuData = { vodId, vodName, sourceCode };
+    
+    // 移除已存在的右键菜单
+    const existingMenu = document.getElementById('contextMenu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    // 创建右键菜单
+    const menu = document.createElement('div');
+    menu.id = 'contextMenu';
+    menu.className = 'fixed bg-[#111] border border-[#333] rounded-lg shadow-lg z-50 py-2 min-w-[160px]';
+    
+    menu.innerHTML = `
+        <div class="px-4 py-2 hover:bg-[#222] cursor-pointer transition-colors" onclick="openInNewTab()">
+            <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+            </svg>
+            新标签打开
+        </div>
+        <div class="px-4 py-2 hover:bg-[#222] cursor-pointer transition-colors" onclick="playInBackground()">
+            <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            后台播放
+        </div>
+        <div class="border-t border-[#333] my-1"></div>
+        <div class="px-4 py-2 hover:bg-[#222] cursor-pointer transition-colors" onclick="showDetailsFromMenu()">
+            <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            查看详情
+        </div>
+    `;
+    
+    // 计算菜单位置，确保不超出屏幕边界
+    const x = event.clientX;
+    const y = event.clientY;
+    const menuWidth = 160;
+    const menuHeight = 120;
+    
+    let left = x;
+    let top = y;
+    
+    // 检查右边界
+    if (x + menuWidth > window.innerWidth) {
+        left = x - menuWidth;
+    }
+    
+    // 检查下边界
+    if (y + menuHeight > window.innerHeight) {
+        top = y - menuHeight;
+    }
+    
+    menu.style.left = `${left}px`;
+    menu.style.top = `${top}px`;
+    
+    document.body.appendChild(menu);
+    
+    // 点击其他地方关闭菜单
+    setTimeout(() => {
+        document.addEventListener('click', hideContextMenu, { once: true });
+        document.addEventListener('contextmenu', hideContextMenu, { once: true });
+    }, 0);
+}
+
+// 隐藏右键菜单
+function hideContextMenu() {
+    const menu = document.getElementById('contextMenu');
+    if (menu) {
+        menu.remove();
+    }
+    contextMenuData = null;
+}
+
+// 在新标签页打开
+function openInNewTab() {
+    if (!contextMenuData) return;
+    
+    const { vodId, vodName, sourceCode } = contextMenuData;
+    
+    // 构建详情页URL，新标签页会显示详情弹窗
+    const detailUrl = `${window.location.origin}${window.location.pathname}?detail=${encodeURIComponent(vodId)}&source=${encodeURIComponent(sourceCode)}&title=${encodeURIComponent(vodName)}`;
+    
+    // 在新标签页打开
+    window.open(detailUrl, '_blank');
+    
+    hideContextMenu();
+    showToast('已在新标签页打开', 'success');
+}
+
+// 后台播放（获取第一集并在新标签页播放）
+async function playInBackground() {
+    if (!contextMenuData) return;
+    
+    const { vodId, vodName, sourceCode } = contextMenuData;
+    
+    hideContextMenu();
+    showToast('正在获取播放链接...', 'info');
+    
+    try {
+        // 获取视频详情
+        let apiParams = '';
+        
+        // 处理自定义API源
+        if (sourceCode.startsWith('custom_')) {
+            const customIndex = sourceCode.replace('custom_', '');
+            const customApi = getCustomApiInfo(customIndex);
+            if (!customApi) {
+                showToast('自定义API配置无效', 'error');
+                return;
+            }
+            if (customApi.detail) {
+                apiParams = '&customApi=' + encodeURIComponent(customApi.url) + '&customDetail=' + encodeURIComponent(customApi.detail) + '&source=custom';
+            } else {
+                apiParams = '&customApi=' + encodeURIComponent(customApi.url) + '&source=custom';
+            }
+        } else {
+            apiParams = '&source=' + sourceCode;
+        }
+        
+        const timestamp = new Date().getTime();
+        const cacheBuster = `&_t=${timestamp}`;
+        const response = await fetch(`/api/detail?id=${encodeURIComponent(vodId)}${apiParams}${cacheBuster}`);
+        
+        const data = await response.json();
+        
+        if (data.episodes && data.episodes.length > 0) {
+            // 获取第一集的播放链接
+            const firstEpisodeUrl = data.episodes[0];
+            
+            // 构建播放器URL
+            const playerUrl = `player.html?url=${encodeURIComponent(firstEpisodeUrl)}&title=${encodeURIComponent(vodName)}&index=0&source=${encodeURIComponent(sourceCode)}&id=${encodeURIComponent(vodId)}&autoplay=true`;
+            
+            // 在新标签页打开播放器
+            window.open(playerUrl, '_blank');
+            
+            showToast('已在新标签页开始播放', 'success');
+        } else {
+            showToast('未找到播放资源', 'error');
+        }
+    } catch (error) {
+        console.error('获取播放链接失败:', error);
+        showToast('获取播放链接失败', 'error');
+    }
+}
+
+// 从右键菜单显示详情
+function showDetailsFromMenu() {
+    if (!contextMenuData) return;
+    
+    const { vodId, vodName, sourceCode } = contextMenuData;
+    hideContextMenu();
+    
+    // 调用原有的显示详情函数
+    showDetails(vodId, vodName, sourceCode);
+}
+
+// 监听ESC键关闭右键菜单
+document.addEventListener('keydown', function(event) {
+    if (event.key === 'Escape') {
+        hideContextMenu();
+    }
+});
