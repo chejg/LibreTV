@@ -59,6 +59,9 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // 初始检查成人API选中状态
     setTimeout(checkAdultAPIsSelected, 100);
+    
+    // 检查是否需要自动播放
+    checkAutoplay();
 });
 
 // 初始化API复选框
@@ -749,8 +752,10 @@ async function search() {
             const hasCover = item.vod_pic && item.vod_pic.startsWith('http');
 
             return `
-                <div class="card-hover bg-[#111] rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md" 
-                     onclick="showDetails('${safeId}','${safeName}','${sourceCode}')" ${apiUrlAttr}>
+                <a href="?autoplay=true&vodId=${safeId}&vodName=${encodeURIComponent(safeName)}&sourceCode=${sourceCode}" 
+                   class="card-hover bg-[#111] rounded-lg overflow-hidden cursor-pointer transition-all hover:scale-[1.02] h-full shadow-sm hover:shadow-md block" 
+                   onclick="event.preventDefault(); showDetails('${safeId}','${safeName}','${sourceCode}')"
+                   ${apiUrlAttr}>
                     <div class="flex h-full">
                         ${hasCover ? `
                         <div class="relative flex-shrink-0 search-card-img-container">
@@ -795,7 +800,7 @@ async function search() {
                             </div>
                         </div>
                     </div>
-                </div>
+                </a>
             `;
         }).join('');
 
@@ -1353,6 +1358,84 @@ function saveStringAsFile(content, fileName) {
     // 清理临时对象
     document.body.removeChild(a);
     window.URL.revokeObjectURL(url);
+}
+
+
+// 检查URL参数，如果有autoplay参数则自动播放
+function checkAutoplay() {
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('autoplay') === 'true') {
+        const vodId = urlParams.get('vodId');
+        const vodName = urlParams.get('vodName');
+        const sourceCode = urlParams.get('sourceCode');
+        
+        if (vodId && vodName && sourceCode) {
+            // 自动获取详情并播放第一集
+            setTimeout(async () => {
+                try {
+                    showLoading();
+                    
+                    // 构建API参数
+                    let apiParams = '';
+                    if (sourceCode.startsWith('custom_')) {
+                        const customIndex = sourceCode.replace('custom_', '');
+                        const customApi = getCustomApiInfo(customIndex);
+                        if (!customApi) {
+                            showToast('自定义API配置无效', 'error');
+                            hideLoading();
+                            return;
+                        }
+                        if (customApi.detail) {
+                            apiParams = '&customApi=' + encodeURIComponent(customApi.url) + '&customDetail=' + encodeURIComponent(customApi.detail) + '&source=custom';
+                        } else {
+                            apiParams = '&customApi=' + encodeURIComponent(customApi.url) + '&source=custom';
+                        }
+                    } else {
+                        apiParams = '&source=' + sourceCode;
+                    }
+
+                    // 获取视频详情
+                    const timestamp = new Date().getTime();
+                    const cacheBuster = `&_t=${timestamp}`;
+                    const response = await fetch(`/api/detail?id=${encodeURIComponent(vodId)}${apiParams}${cacheBuster}`);
+                    const data = await response.json();
+
+                    if (data.episodes && data.episodes.length > 0) {
+                        // 设置全局变量
+                        currentEpisodes = data.episodes;
+                        currentEpisodeIndex = 0;
+                        currentVideoTitle = vodName;
+                        
+                        // 直接播放第一集
+                        const firstEpisodeUrl = data.episodes[0];
+                        playVideo(firstEpisodeUrl, vodName, sourceCode, 0, vodId);
+                    } else {
+                        // 如果没有播放资源，显示详情页面
+                        showDetails(vodId, vodName, sourceCode);
+                    }
+                } catch (error) {
+                    console.error('自动播放获取详情错误:', error);
+                    // 出错时回退到显示详情页面
+                    showDetails(vodId, vodName, sourceCode);
+                } finally {
+                    hideLoading();
+                }
+            }, 1000);
+            
+            // 清理URL参数
+            const newUrl = new URL(window.location.href);
+            newUrl.searchParams.delete('autoplay');
+            newUrl.searchParams.delete('vodId');
+            newUrl.searchParams.delete('vodName');
+            newUrl.searchParams.delete('sourceCode');
+            window.history.replaceState({}, document.title, newUrl.toString());
+        }
+    }
+}
+
+// 重置到首页
+function resetToHome() {
+    resetSearchArea();
 }
 
 // 移除Node.js的require语句，因为这是在浏览器环境中运行的
